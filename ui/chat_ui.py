@@ -205,6 +205,12 @@ class ChatWindow(QWidget):
         min_similarity_layout.addWidget(min_similarity_label)
         min_similarity_layout.addWidget(min_similarity)
         
+        # Test Case 별 결과 확인 버튼
+        view_case_button = QPushButton("Case 별 답변 보기")
+        view_case_button.setEnabled(False)  # 초기 상태를 비활성화
+        view_case_button.setObjectName("view_case_button")
+        tab_layout.addWidget(view_case_button)
+        
         # 결과 표시 레이아웃을 메인 레이아웃에 추가
         tab_layout.addLayout(consistency_layout)
         tab_layout.addLayout(max_similarity_layout)
@@ -218,9 +224,15 @@ class ChatWindow(QWidget):
         self.tab_widget.addTab(tab, f"Test Case {self.tab_widget.count() + 1}")
         
         self.run_button.setEnabled(True)
+        
+        return view_case_button
     
     def remove_test_case_tab(self, tab):
         """Removes the specified tab"""
         index = self.tab_widget.indexOf(tab)
         if index != -1:
             self.tab_widget.removeTab(index)
+            
+    def connect_view_case_button(self, button, handler):
+        """view_case_button의 클릭 이벤트를 MainApp의 핸들러에 연결"""
+        button.clicked.connect(handler)

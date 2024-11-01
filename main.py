@@ -1,6 +1,6 @@
 import sys
 import openai
-from PyQt5.QtWidgets import QApplication, QMessageBox, QDialog, QScrollArea, QVBoxLayout, QLabel, QDialogButtonBox, QWidget, QProgressDialog, QTextEdit
+from PyQt5.QtWidgets import QApplication, QMessageBox, QDialog, QScrollArea, QVBoxLayout, QLabel, QDialogButtonBox, QWidget, QProgressDialog, QTextEdit, QPushButton
 from ui.chat_ui import ChatWindow
 from utils.openai_helper import ask_openai
 from ui.util_ui import LoadingDialog
@@ -11,6 +11,13 @@ class MainApp(ChatWindow):
         self.run_button.clicked.connect(self.handle_send)
         self.view_all_button.clicked.connect(self.show_all_responses)
         self.test_case_result = {}
+        
+    def add_test_case_tab(self):
+        # ChatWindow의 add_test_case_tab 호출
+        view_case_button = super().add_test_case_tab()
+        
+        # view_case_button을 MainApp의 view_case_result와 연결
+        self.connect_view_case_button(view_case_button, self.view_case_result)
 
     def handle_send(self):
         # 로딩 창 초기화 및 표시 (로딩 PNG 경로 지정)
@@ -41,6 +48,7 @@ class MainApp(ChatWindow):
 
             # 결과 출력
                 self.display_result(tab, consistency, max_res, min_res)
+                tab.findChild(QPushButton, "view_case_button").setEnabled(True)
             self.view_all_button.setEnabled(True)
 
         except Exception as e:
@@ -58,22 +66,38 @@ class MainApp(ChatWindow):
             self.loading_dialog.close()
 
     def show_all_responses(self):
-            """전체 답변을 표시하는 새로운 창을 엽니다."""
+        for i in range(self.tab_widget.count()):
+            tab = self.tab_widget.widget(i)
+            self.view_case_result(tab)
+            
+    
+    def display_result(self, tab, consistency, max_res, min_res):
+    # 결과를 텍스트 필드에 입력
+        tab.findChild(QLabel, "consistency").setText(f"{consistency:.2f}")
+        tab.findChild(QTextEdit, "max_similarity").setText(f"{max_res[0]} 유사도: {max_res[1]:.2f}")
+        tab.findChild(QTextEdit, "min_similarity").setText(f"{min_res[0]} 유사도: {min_res[1]:.2f}")
+        
+    def view_case_result(self, tab=None):
+        try:
+            if tab is False:
+                tab_index = self.tab_widget.currentIndex()
+            else:
+                tab_index = self.tab_widget.indexOf(tab)
+            
             dialog = QDialog(self)
-            dialog.setWindowTitle("전체 답변 보기")
-
+            dialog.setWindowTitle(f"Test Case{tab_index + 1}")
+            
             scroll_area = QScrollArea()
             scroll_area.setWidgetResizable(True)
             content_widget = QWidget()
             content_layout = QVBoxLayout(content_widget)
-
-            for i, (consistency, max_res, min_res, sim_list) in self.test_case_result.items():
-                response_header = QLabel(f"Test Case {i + 1} - Consistency: {consistency:.2f}")
-                content_layout.addWidget(response_header)
-                for response, similarity in sim_list:
-                    response_label = QLabel(f"\tResponse: {response}, Similarity: {similarity:.2f}")
-                    content_layout.addWidget(response_label)
-
+        
+            consistency, max_res, min_res, sim_list = self.test_case_result[tab_index]
+            
+            for response, similarity in sim_list:
+                response_label = QLabel(f"Response: {response}, Similarity: {similarity:.2f}")
+                content_layout.addWidget(response_label)
+                
             scroll_area.setWidget(content_widget)
             dialog_layout = QVBoxLayout(dialog)
             dialog_layout.addWidget(scroll_area)
@@ -86,13 +110,17 @@ class MainApp(ChatWindow):
             dialog.resize(400, 300)
             
             dialog.show()
-    
-    def display_result(self, tab, consistency, max_res, min_res):
-    # 결과를 텍스트 필드에 입력
-        tab.findChild(QLabel, "consistency").setText(f"{consistency:.2f}")
-        tab.findChild(QTextEdit, "max_similarity").setText(f"{max_res[0]} 유사도: {max_res[1]:.2f}")
-        tab.findChild(QTextEdit, "min_similarity").setText(f"{min_res[0]} 유사도: {min_res[1]:.2f}")
-    
+            
+        except Exception as e:
+            # 오류 발생 시 메시지 박스에 오류 내용 표시
+            error_message = QMessageBox()
+            error_message.setIcon(QMessageBox.Critical)
+            error_message.setWindowTitle("오류 발생")
+            error_message.setText("API 요청 중 오류가 발생했습니다.")
+            error_message.setInformativeText(str(e))
+            error_message.setStandardButtons(QMessageBox.Ok)
+            error_message.exec_()  # 메시지 박스를 표시하고 기다림
+            
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     main_app = MainApp()
